@@ -8,7 +8,7 @@ import ExifDisplay from '@/components/ExifDisplay';
 
 export default function Home() {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [exifData, setExifData] = useState<Record<string, unknown> | null>(null);
+  const [exifData, setExifData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
 
   const handleImageUpload = async (file: File) => {
@@ -19,16 +19,17 @@ export default function Home() {
       const imageUrl = URL.createObjectURL(file);
       setSelectedImage(imageUrl);
       
-      // Extract EXIF data with all options enabled to get maximum metadata
-      let exif;
+      // First try to extract full EXIF data including all possible tags
+      let exif: any;
+      
       try {
-        // Try to extract all possible EXIF data including advanced options
+        // Extract EXIF data with all options enabled for maximum data extraction
         exif = await exifr.parse(file, { 
-          tiff: true, 
+          tiff: true,
           jfif: true, 
-          icc: true, 
-          iptc: true, 
-          xmp: true, 
+          icc: true,
+          iptc: true,
+          xmp: true,
           exif: true,
           gps: true,
           interop: true,
@@ -38,25 +39,15 @@ export default function Home() {
           mergeOutput: true
         });
         
-        // Try different extraction method to get more data
-        try {
-          const moreExif = await exifr.parse(file, { 
-            tiff: true,
-            mergeOutput: false // Get raw segments
-          });
-          
-          if (moreExif) {
-            // Merge additional data with our existing data
-            exif = { ...exif, ...moreExif };
-          }
-        } catch (additionalError) {
-          console.warn('Additional EXIF extraction method failed:', additionalError);
+        // Try a second extraction method that might catch different data
+        const tiffData = await exifr.parse(file, true); 
+        if (tiffData) {
+          // Merge with main EXIF data
+          exif = { ...exif, ...tiffData };
         }
-        
-        console.log('Full EXIF data:', exif); // Log all extracted data for debugging
-      } catch (exifError) {
-        console.warn('Advanced EXIF extraction failed, falling back to basic parsing:', exifError);
-        // Fall back to basic parsing
+      } catch (error) {
+        console.error('Error with advanced EXIF parsing, trying basic parse:', error);
+        // Fallback to basic parsing if advanced fails
         exif = await exifr.parse(file);
       }
       
@@ -71,7 +62,10 @@ export default function Home() {
         ImageHeight: exif?.ImageHeight || exif?.height,
       };
       
-      setExifData(enrichedExif as Record<string, unknown>);
+      // Log the full EXIF data to console for debugging
+      console.log('Full EXIF data:', enrichedExif);
+      
+      setExifData(enrichedExif);
     } catch (error) {
       console.error('Error extracting EXIF data:', error);
       setExifData(null);
@@ -103,26 +97,6 @@ export default function Home() {
           </p>
         </header>
 
-        <style jsx global>{`
-          .exif-card {
-            transition: all 0.2s ease-in-out;
-          }
-          .exif-card:hover {
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-          }
-          .highlight-value {
-            color: #2563eb;
-            font-weight: 600;
-          }
-          .timestamp-cell {
-            font-family: monospace;
-            font-size: 0.85rem;
-          }
-          .break-all {
-            word-break: break-all;
-          }
-        `}</style>
-
         <div className="max-w-7xl mx-auto">
           {!selectedImage ? (
             <div className="mb-12">
@@ -132,13 +106,13 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-12">
               <div className="lg:col-span-1 bg-white p-4 rounded-lg shadow">
                 <div className="relative aspect-square overflow-hidden rounded-md">
-                  <Image
+        <Image
                     src={selectedImage}
                     alt="Uploaded image"
                     fill
                     style={{ objectFit: 'contain' }}
-                    priority
-                  />
+          priority
+        />
                 </div>
                 <button 
                   className="w-full mt-4 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
